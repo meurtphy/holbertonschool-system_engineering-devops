@@ -1,0 +1,125 @@
+# Scale Up – High Availability and Separated Components Infrastructure
+
+## Objective
+
+To enhance scalability, availability, and maintainability, we split the monolithic infrastructure into separate layers:
+- A **clustered load-balancer**
+- Dedicated servers for:
+  - **Web server**
+  - **Application server**
+  - **Database**
+
+---
+
+## Infrastructure Overview
+
+### ⚙️ New Additions
+- **1 new application server**
+- **1 new load balancer**, configured in **cluster** with the existing one (active-active)
+- **Dedicated servers** for each layer (web, app, DB)
+
+---
+
+## Scaled Infrastructure Diagram (ASCII)
+
+pgsql
+
+                      +----------------------------+
+                      |         DNS (A Record)     |
+                      +----------------------------+
+                                 |
+                                 v
+               +--------------------+   +--------------------+
+               | Load Balancer #1   |   | Load Balancer #2   |
+               |  (HAProxy - Active)|<->| (HAProxy - Active) |
+               +--------------------+   +--------------------+
+                         |                     |
+                         +----------+----------+
+                                    |
+               +-------------------+--------------------+
+               |                                        |
+     +------------------+                  +------------------+
+     |   Web Server      |                  |  Web Server      |
+     |   (Nginx only)    |                  |  (Nginx only)    |
+     +--------+----------+                  +--------+----------+
+              |                                     |
+       +------+-----------+                 +-------+----------+
+       | Application Server |               | Application Server |
+       |   (Business logic) |               |   (Business logic) |
+       +--------+-----------+               +--------+-----------+
+                \                               /
+                 \                             /
+                 +-----------------------------+
+                 |      Database Server         |
+                 |         (MySQL)              |
+                 +-----------------------------+
+yaml
+
+
+---
+
+## Key Components and Their Roles
+
+### 🔁 Load Balancer Cluster (HAProxy Active-Active)
+- **Why?**
+  - Prevents Single Point of Failure (SPOF).
+  - Shares traffic between the two load balancers.
+  - Ensures availability even if one LB fails.
+
+### 🌍 Web Server (Nginx)
+- **Dedicated machine** handling only HTTP/S requests.
+- Serves static content, SSL termination, and acts as a reverse proxy to the app server.
+- **Why split it?** Reduces resource contention and isolates HTTP layer.
+
+### ⚙️ Application Server
+- Dedicated to executing backend logic (e.g., PHP, Node.js, Python).
+- Processes dynamic requests forwarded from the web server.
+- Communicates with the database for data operations.
+- **Why split it?** Allows independent scaling and easier debugging of backend logic.
+
+### 🗄️ Database Server (MySQL)
+- Stores and manages persistent application data.
+- Centralized location for read/write operations.
+- **Why split it?** Critical for data integrity and resource isolation from web/app servers.
+
+---
+
+## Why Each Component Was Added
+
+| Component               | Reason                                                                 |
+|-------------------------|------------------------------------------------------------------------|
+| **New Server (App)**    | Enables separate scaling of backend logic without affecting web layer |
+| **HAProxy Cluster**     | Eliminates SPOF, ensures high availability of the entry point         |
+| **Dedicated Roles**     | Each server focuses on one task → better performance, easier scaling   |
+
+---
+
+## Application Server vs Web Server
+
+| **Web Server**              | **Application Server**                       |
+|----------------------------|----------------------------------------------|
+| Handles HTTP/HTTPS requests| Executes dynamic business logic              |
+| Serves static files (HTML) | Runs backend frameworks (PHP, Python, etc.)  |
+| Can act as reverse proxy   | Connects to DB to fetch/store data           |
+| Lightweight, fast          | More resource-intensive                      |
+
+---
+
+## Benefits of Scaling Up
+
+✅ Improved performance through separation of concerns
+✅ High availability thanks to redundant load balancers
+✅ Easier scaling (horizontally) for each individual layer
+✅ Reduced risk of full stack failure from one point
+
+---
+
+## Summary
+
+In this scaled-up infrastructure:
+
+- We add **1 new application server** to separate app logic from web layer.
+- We configure a **HAProxy cluster** (Active-Active) to balance load and avoid SPOF.
+- We **split roles** (web/app/DB) onto their **own dedicated servers**, making the system modular, scalable, and production-ready.
+
+This infrastructure supports **scalability, fault tolerance, and clean separation of responsibilities**, setting the foundation for more advanced deployments (e.g., autoscaling, containerization).

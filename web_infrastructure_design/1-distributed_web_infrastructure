@@ -1,0 +1,152 @@
+# Distributed Web Infrastructure
+
+## Overview Diagram (ASCII)
+
+pgsql
+Copier le code
+                         +-------------------------+
+                         |     DNS Resolution      |
+                         | www.foobar.com → LB IP  |
+                         +-----------+-------------+
+                                     |
+                                     v
+                       +---------------------------+
+                       |      Load Balancer        |
+                       |       (HAProxy)           |
+                       +-----------+---------------+
+                                   |
+             +---------------------+---------------------+
+             |                                           |
+             v                                           v
+   +------------------+                       +------------------+
+   |   Server #1      |                       |   Server #2      |
+   |------------------|                       |------------------|
+   | Nginx Web Server |                       | Nginx Web Server |
+   | App Server       |                       | App Server       |
+   | App Files        |                       | App Files        |
+   | MySQL DB (Primary)|                      | MySQL DB (Replica)|
+   +------------------+                       +------------------+
+markdown
+Copier le code
+
+---
+
+## Scenario
+
+A user wants to access the website **www.foobar.com**. When the user types the URL into a browser, the following process occurs:
+
+1. The browser performs a DNS lookup for `www.foobar.com`.
+2. The DNS returns the IP address of the load balancer.
+3. The browser sends an HTTP/HTTPS request to the load balancer.
+4. The load balancer distributes the request to one of the two backend servers.
+5. The chosen server processes the request:
+   - The web server (Nginx) handles static content and serves as a reverse proxy.
+   - The application server runs the business logic and interacts with the database.
+6. The MySQL database stores and retrieves the website data.
+7. The server responds back through the load balancer to the user's browser.
+
+---
+
+## Infrastructure Components
+
+### 1. **Load Balancer (HAproxy)**
+- **Purpose:**
+  - Distribute incoming traffic across multiple servers to avoid overloading a single server.
+  - Increase availability and reliability of the service.
+- **Configuration:**
+  - **Distribution Algorithm:** Round Robin – this algorithm sends each incoming request to the next server in order, ensuring an even distribution.
+  - **Setup:** Can be configured as **Active-Active** (both backend servers handle traffic simultaneously) or **Active-Passive** (one server handles traffic, with the other as a standby).
+    - **Active-Active:** Both servers share the load, offering better performance and redundancy.
+    - **Active-Passive:** Only the primary server actively serves traffic; the secondary is only used if the primary fails.
+- **Why add it?** It removes the single point of failure from handling all requests on one server and improves load management.
+
+### 2. **Servers (2 Backend Servers)**
+Each server contains the following components:
+
+#### a. **Web Server (Nginx)**
+- **Role:**
+  - Listens for HTTP/HTTPS requests.
+  - Serves static files (HTML, CSS, JS).
+  - Acts as a reverse proxy, forwarding dynamic requests to the application server.
+- **Why include it?** It efficiently handles web traffic and offloads tasks such as caching and SSL termination.
+
+#### b. **Application Server**
+- **Role:**
+  - Executes the business logic of your website.
+  - Processes dynamic requests and data manipulation.
+  - Communicates with the database to obtain or update data.
+- **Why include it?** Separates the presentation layer from the business logic, making your application more modular and maintainable.
+
+#### c. **Application Files (Code Base)**
+- **Role:**
+  - Contains all the source code, including routes, templates, and configuration files.
+  - Determines how the web and application servers process requests.
+- **Why include it?** It is the core of your website’s functionality and defines how the site operates.
+
+#### d. **Database (MySQL)**
+- **Role:**
+  - Stores and manages persistent data such as user information, transactions, and content.
+  - Responds to queries from the application server.
+- **Why include it?** Data persistence and reliability are critical for a dynamic website. A database ensures that data can be stored, retrieved, and updated consistently.
+
+---
+
+## Load Balancer Details
+
+- **Algorithm (Round Robin):**
+  The load balancer cyclically distributes incoming requests to the available servers. This ensures that each server receives an approximately equal number of requests, preventing any one server from becoming overwhelmed.
+
+- **Active-Active vs. Active-Passive:**
+  - **Active-Active Setup:** Both backend servers handle live traffic simultaneously. This enhances performance and provides high availability, as traffic can be balanced dynamically between servers.
+  - **Active-Passive Setup:** Only the primary server handles traffic while the secondary stands by to take over in case of a failure. This setup is simpler but may result in underutilization of resources under normal conditions.
+
+---
+
+## Database Clustering: Primary-Replica (Master-Slave)
+
+pgsql
+Copier le code
+   +-----------------+       Replication       +------------------+
+   |  Primary DB     |  -------------------->  |  Replica DB      |
+   |  (Server #1)    |                         |  (Server #2)      |
+   +--------+--------+                         +---------+--------+
+            ^                                             |
+            |                      Read queries           |
+     +------+---------+                                 +-+--------+
+     | App Server #1  |                                 | App Server #2 |
+     +----------------+                                 +---------------+
+markdown
+Copier le code
+
+- **How It Works:**
+  - **Primary (Master) Node:**
+    Handles all write operations (inserts, updates, deletes) as well as read operations. It is considered the authoritative source of data.
+  - **Replica (Slave) Nodes:**
+    Receive real-time copies of data from the primary node. They handle most read operations to reduce the load on the primary.
+- **Application Perspective:**
+  The application interacts with the primary node for data modifications, while read-heavy queries may be directed to replica nodes to enhance performance and scalability.
+
+---
+
+## Issues and Limitations of This Infrastructure
+
+1. **SPOF (Single Point of Failure):**
+   - Even though the load balancer distributes traffic, it itself can be a single point of failure unless redundant load balancers are deployed.
+
+2. **Security Concerns:**
+   - Lack of firewalls or proper HTTPS configuration can leave the infrastructure vulnerable to attacks.
+   - Additional security measures (firewall, SSL/TLS encryption) are necessary.
+
+3. **No Monitoring:**
+   - Without a dedicated monitoring system, it’s challenging to keep track of server performance, detect failures, or respond to security threats promptly.
+
+---
+
+## Summary
+
+This distributed web infrastructure includes:
+- **1 Load Balancer (HAproxy):** Distributes traffic using Round Robin; configurable as Active-Active or Active-Passive.
+- **2 Backend Servers:** Each runs a web server (Nginx), an application server, the application code base, and a database (MySQL).
+- **Database Clustering:** Employing a Primary-Replica setup, where the primary node handles write operations and replicas aid in read queries.
+
+While this setup improves performance and availability over a single-server infrastructure, it still faces challenges such as potential SPOFs at the load balancer level, security vulnerabilities, and the absence of a monitoring system. For a production-grade environment, further enhancements like redundancy for the load balancer and comprehensive security and monitoring solutions would be essential.

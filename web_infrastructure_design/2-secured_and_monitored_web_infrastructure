@@ -1,0 +1,149 @@
+# Secured and Monitored Web Infrastructure
+
+## Overview Diagram (ASCII)
+
+pgsql
+
+                +-----------------------------+
+                |     DNS (foobar.com)        |
+                +-------------+---------------+
+                              |
+                              v
+                  +----------------------+
+                  |   Load Balancer (LB) |
+                  |    with SSL Termination |
+                  +----------------------+
+                         |     |     |
+                     FW1|   FW2|   FW3|
+                         |     |     |
+          +--------------+     +--------------+
+          |                                 |
++--------------------+         +--------------------+
+|   Web Server 1     |         |   Web Server 2     |
+|  Nginx + App + DB  |         |  Nginx + App + DB  |
+|  Monitoring Agent  |         |  Monitoring Agent  |
++--------------------+         +--------------------+
+markdown
+
+
+---
+
+## Scenario
+
+A user wants to access **www.foobar.com** using a secure and reliable infrastructure. The system must serve traffic over **HTTPS**, be protected by **firewalls**, and continuously **monitored** for performance, availability, and security.
+
+---
+
+## Components and Security Enhancements
+
+### 1. **SSL Certificate**
+- **Purpose:** Encrypt traffic between the user's browser and the server using HTTPS.
+- **Why add it?**
+  - Ensures **confidentiality** and **integrity** of data in transit.
+  - Prevents **man-in-the-middle attacks**.
+  - Builds **user trust** by serving the site over `https://`.
+
+### 2. **Firewalls (3 Total)**
+- One firewall in front of **each server** (Web Server 1, Web Server 2, Load Balancer).
+- **Purpose:**
+  - Control **inbound and outbound network traffic**.
+  - Block unauthorized access, especially to internal services.
+- **Why add them?**
+  - Strengthens network segmentation.
+  - Prevents lateral movement in case of compromise.
+  - Essential layer of defense in depth.
+
+### 3. **Monitoring Clients (3 Total)**
+- One installed on **each server** (Web Server 1, Web Server 2, Load Balancer).
+- Examples: **Sumologic**, **Datadog**, **Prometheus**, or **New Relic** agents.
+- **Purpose:**
+  - Continuously collect **system metrics**, **application logs**, and **security events**.
+  - Help detect outages, performance bottlenecks, or attacks.
+
+---
+
+## Monitoring Architecture Diagram
+
++---------------------+ +---------------------+ +---------------------+
+| Web Server 1 | | Web Server 2 | | Load Balancer |
+| - App/Web/DB | | - App/Web/DB | | - SSL Termination |
+| - Monitoring Agent | --> | - Monitoring Agent | --> | - Monitoring Agent |
++---------------------+ +---------------------+ +---------------------+
+| | |
++-----------------------------------------------------+
+|
++------------------+
+| Monitoring Tool |
+| (Sumologic etc.) |
++------------------+
+
+markdown
+
+
+---
+
+## How Monitoring Works
+
+- **Monitoring agents** collect:
+  - System metrics: CPU, memory, disk, network
+  - Web metrics: QPS (Queries Per Second), error rates
+  - Logs: Access logs, error logs, DB logs
+
+- **QPS Monitoring Example:**
+  - Web server logs (e.g., Nginx access logs) are parsed by the agent.
+  - The agent counts requests over time and sends the QPS metric to the dashboard.
+  - You can configure alerts if QPS exceeds normal thresholds.
+
+---
+
+## Infrastructure Justifications
+
+| Component             | Why it’s added                                                |
+|-----------------------|---------------------------------------------------------------|
+| **SSL Certificate**   | Encrypts data in transit; improves security and user trust    |
+| **Firewalls (x3)**    | Protects servers by controlling allowed traffic               |
+| **Monitoring Clients**| Enables real-time observability and proactive issue detection |
+
+---
+
+## Security and Design Issues in This Architecture
+
+### 1. **SSL Termination at Load Balancer**
+- **Problem:** If SSL is terminated at the load balancer, traffic between the load balancer and backend servers is **unencrypted**.
+- **Risk:** Internal traffic could be intercepted if the internal network is compromised.
+- **Solution:** Use **end-to-end encryption** (re-encrypt traffic between LB and backend).
+
+### 2. **Only One MySQL Server Accepting Writes**
+- **Problem:** If the single write-enabled MySQL server fails, **data cannot be written**.
+- **Impact:** Site may stay up but all dynamic operations (e.g., user registration) fail.
+- **Solution:** Add **MySQL replication failover** or **clustered database solutions** like Galera or ProxySQL.
+
+### 3. **Identical Server Roles**
+- **Problem:** Each server runs **web server, application, and database** — tightly coupled.
+- **Risk:**
+  - Hard to scale individual layers.
+  - A failure or spike in one component (e.g., DB) affects the whole stack.
+- **Solution:** Use **separated server roles** (web-only, app-only, DB-only) and possibly containers or microservices.
+
+---
+
+## Summary
+
+This secured and monitored infrastructure includes:
+- **1 Load Balancer** with **SSL termination**
+- **2 Backend Servers** running:
+  - Web server (Nginx), application server, MySQL DB
+  - Individual **firewalls** for each node
+  - Monitoring agents
+- All traffic served over **HTTPS**
+- Logs and metrics collected for monitoring
+
+### Benefits:
+- Improved **security** with firewalls and HTTPS
+- Improved **visibility** with monitoring
+- Better **fault detection** and analysis
+
+### Limitations:
+- SSL termination may leave backend unencrypted unless re-encrypted
+- MySQL SPOF unless using advanced replication/failover
+- Scaling and managing mixed-role servers is harder than role separation

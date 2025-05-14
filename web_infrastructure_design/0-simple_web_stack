@@ -1,0 +1,65 @@
+# Simple Web Stack
+
+![Simple Web Stack](https://i.imgur.com/4yiiSNU.png)
+
+---
+
+## 🔍 Scenario
+
+A user wants to access the website **www.foobar.com**. Here's what happens step by step:
+
+1. The user opens a web browser and types `www.foobar.com`.
+2. The browser performs a DNS lookup to resolve `www.foobar.com` to an IP address.
+3. The DNS returns `8.8.8.8`, which is the IP address of the web server.
+4. The browser sends an HTTP/HTTPS request to `8.8.8.8`.
+5. The request reaches the server, which processes it and returns the appropriate response (a web page).
+
+---
+
+## 🧱 Infrastructure Components
+
+### 1. **Domain Name: `foobar.com`**
+- A human-friendly alias for the server’s IP address.
+- `www` is a **subdomain** of `foobar.com`.
+- The DNS uses an **A record** to map `www.foobar.com` to `8.8.8.8`.
+
+### 2. **Server (IP: 8.8.8.8)**
+- A physical or virtual machine that hosts all components of the stack:
+  - Web server
+  - Application server
+  - Application code
+  - Database
+
+### 3. **Web Server (Nginx)**
+- Listens for HTTP/HTTPS requests from clients.
+- Serves static files like HTML, CSS, JS.
+- Forwards dynamic requests to the application server (reverse proxy).
+
+### 4. **Application Server**
+- Runs the backend code of the website (e.g., PHP, Python, Node.js).
+- Processes dynamic content and executes business logic.
+- Interacts with the database to read/write data.
+
+### 5. **Application Files (Code Base)**
+- The source code of the website.
+- Defines how requests are handled and what content is returned.
+- Includes routes, templates, logic, and configurations.
+
+### 6. **Database (MySQL)**
+- Stores structured data like users, posts, transactions, etc.
+- Responds to queries from the application server.
+- Ensures data is persistent, consistent, and accessible.
+
+---
+
+## 🌐 Communication Flow
+
+```text
+User → DNS lookup for www.foobar.com → A record returns 8.8.8.8
+User → HTTP request to 8.8.8.8
+      ↓
+[ Nginx (Web Server) ]
+      ↓
+[ App Server (Executes Code) ]
+      ↓
+[ MySQL Database ]
